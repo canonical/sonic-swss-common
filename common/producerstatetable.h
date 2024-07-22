@@ -10,8 +10,8 @@ namespace swss {
 class ProducerStateTable : public TableBase, public TableName_KeySet
 {
 public:
-    ProducerStateTable(DBConnector *db, const std::string &tableName);
-    ProducerStateTable(RedisPipeline *pipeline, const std::string &tableName, bool buffered = false);
+    ProducerStateTable(DBConnector *db, const std::string &tableName, bool flushPub = false);
+    ProducerStateTable(RedisPipeline *pipeline, const std::string &tableName, bool buffered = false, bool flushPub = false);
     virtual ~ProducerStateTable();
 
     void setBuffered(bool buffered);

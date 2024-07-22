@@ -3,6 +3,7 @@
 #include <sstream>
 #include <utility>
 #include <algorithm>
+#include "redispipeline.h"
 #include "redisreply.h"
 #include "table.h"
 #include "redisapi.h"
@@ -13,20 +14,25 @@ using namespace std;
 
 namespace swss {
 
-ProducerStateTable::ProducerStateTable(DBConnector *db, const string &tableName)
-    : ProducerStateTable(new RedisPipeline(db, 1), tableName, false)
+ProducerStateTable::ProducerStateTable(DBConnector *db, const string &tableName, bool flushPub)
+    : ProducerStateTable(new RedisPipeline(db, 1), tableName, false, flushPub)
 {
     m_pipeowned = true;
 }
 
-ProducerStateTable::ProducerStateTable(RedisPipeline *pipeline, const string &tableName, bool buffered)
+ProducerStateTable::ProducerStateTable(RedisPipeline *pipeline, const string &tableName, bool buffered, bool flushPub)
     : TableBase(tableName, SonicDBConfig::getSeparator(pipeline->getDBConnector()))
     , TableName_KeySet(tableName)
+    , m_flushPub(flushPub)
     , m_buffered(buffered)
     , m_pipeowned(false)
     , m_tempViewActive(false)
     , m_pipe(pipeline)
 {
+    if (m_flushPub) {
+        m_pipe->addChannel(getChannelName(m_pipe->getDbId()));
+    }
+
     // num in luaSet and luaDel means number of elements that were added to the key set,
     // not including all the elements already present into the set.
     string luaSet =
@@ -34,19 +40,11 @@ ProducerStateTable::ProducerStateTable(RedisPipeline *pipeline, const string &ta
         "for i = 0, #KEYS - 3 do\n"
         "    redis.call('HSET', KEYS[3 + i], ARGV[3 + i * 2], ARGV[4 + i * 2])\n"
         "end\n"
-        " if added > 0 then \n"
-        "    redis.call('PUBLISH', KEYS[1], ARGV[1])\n"
-        "end\n";
-    m_shaSet = m_pipe->loadRedisScript(luaSet);
 
     string luaDel =
         "local added = redis.call('SADD', KEYS[2], ARGV[2])\n"
         "redis.call('SADD', KEYS[4], ARGV[2])\n"
         "redis.call('DEL', KEYS[3])\n"
-        "if added > 0 then \n"
-        "    redis.call('PUBLISH', KEYS[1], ARGV[1])\n"
-        "end\n";
-    m_shaDel = m_pipe->loadRedisScript(luaDel);
 
     string luaBatchedSet =
         "local added = 0\n"
@@ -60,10 +58,6 @@ ProducerStateTable::ProducerStateTable(RedisPipeline *pipeline, const string &ta
         "    end\n"
         "    idx = idx + tonumber(ARGV[idx]) * 2 + 1\n"
         "end\n"
-        "if added > 0 then \n"
-        "    redis.call('PUBLISH', KEYS[1], ARGV[1])\n"
-        "end\n";
-    m_shaBatchedSet = m_pipe->loadRedisScript(luaBatchedSet);
 
     string luaBatchedDel =
         "local added = 0\n"
@@ -72,10 +66,6 @@ ProducerStateTable::ProducerStateTable(RedisPipeline *pipeline, const string &ta
         "    redis.call('SADD', KEYS[3], KEYS[5 + i])\n"
         "    redis.call('DEL', KEYS[4] .. KEYS[5 + i])\n"
         "end\n"
-        "if added > 0 then \n"
-        "    redis.call('PUBLISH', KEYS[1], ARGV[1])\n"
-        "end\n";
-    m_shaBatchedDel = m_pipe->loadRedisScript(luaBatchedDel);
 
     string luaClear =
         "redis.call('DEL', KEYS[1])\n"
@@ -84,6 +74,21 @@ ProducerStateTable::ProducerStateTable(RedisPipeline *pipeline, const string &ta
         "    redis.call('DEL', k)\n"
         "end\n"
         "redis.call('DEL', KEYS[3])\n";
+    
+    if (!m_flushPub) {
+        string luaPub =
+            "if added > 0 then \n"
+            "    redis.call('PUBLISH', KEYS[1], ARGV[1])\n"
+            "end\n";
+        luaSet += luaPub;
+        luaDel += luaPub;
+        luaBatchedSet += luaPub;
+        luaBatchedDel += luaPub;
+    }
+    m_shaSet = m_pipe->loadRedisScript(luaSet);
+    m_shaDel = m_pipe->loadRedisScript(luaDel);
+    m_shaBatchedSet = m_pipe->loadRedisScript(luaBatchedSet);
+    m_shaBatchedDel = m_pipe->loadRedisScript(luaBatchedDel);
     m_shaClear = m_pipe->loadRedisScript(luaClear);
 
     string luaApplyView = loadLuaScript("producer_state_table_apply_view.lua");
