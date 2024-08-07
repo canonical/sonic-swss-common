@@ -45,7 +45,7 @@ tests_tests_SOURCES = tests/redis_ut.cpp                \
                       tests/main.cpp
 
 tests_tests_CFLAGS = $(DBGFLAGS) $(AM_CFLAGS) $(CFLAGS_COMMON) $(CFLAGS_GTEST) $(LIBNL_CFLAGS)
-tests_tests_CPPFLAGS = $(DBGFLAGS) $(AM_CFLAGS) $(CFLAGS_COMMON) $(CFLAGS_GTEST) $(LIBNL_CFLAGS) -fno-access-control
+tests_tests_CPPFLAGS = $(DBGFLAGS) $(AM_CFLAGS) $(CFLAGS_COMMON) $(CFLAGS_GTEST) $(LIBNL_CFLAGS) -fno-access-control -Wno-ignored-attributes
 tests_tests_LDADD = $(LDADD_GTEST) -lpthread common/libswsscommon.la $(LIBNL_LIBS) $(CODE_COVERAGE_LIBS) sonic-db-cli/libsonicdbcli.la -lzmq -luuid -lboost_serialization
 
 if YANGMODS

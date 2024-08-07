@@ -4,6 +4,7 @@
 #include <sys/wait.h>
 #include "exec.h"
 #include "common/logger.h"
+#include <stdexcept>
 
 using namespace std;
 
