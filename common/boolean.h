@@ -16,10 +16,6 @@ public:
     {
         return m_boolean;
     }
-    operator bool&()
-    {
-        return m_boolean;
-    }
 protected:
     bool m_boolean;
 };
@@ -40,7 +36,13 @@ static inline std::ostream &operator<<(std::ostream &out, const AlphaBoolean &b)
 
 static inline std::istream &operator>>(std::istream &in, AlphaBoolean &b)
 {
-    return in >> std::boolalpha >> (bool &)(b);
+    bool tmp;
+    in >> std::boolalpha >> tmp;
+    if (in)
+    {
+        b = tmp;
+    }
+    return in;
 }
 
 static inline std::ostream &operator<<(std::ostream &out, const Boolean &b)
@@ -50,7 +52,13 @@ static inline std::ostream &operator<<(std::ostream &out, const Boolean &b)
 
 static inline std::istream &operator>>(std::istream &in, Boolean &b)
 {
-    return in >> (bool &)(b);
+    bool tmp;
+    in >> tmp;
+    if (in)
+    {
+        b = tmp;
+    }
+    return in;
 }
 
 }
