@@ -232,7 +232,7 @@
 // Mapping c++ exception to go language panic
 %exception {
 	try {
-		$function
+		$action
 	} catch(const std::system_error& e) {
         if (e.code() == std::make_error_code(std::errc::connection_reset))
         {
