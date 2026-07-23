@@ -12,6 +12,7 @@ public:
     Boolean(bool boolean) : m_boolean(boolean)
     {
     }
+    // operator bool&() dropped: C++17 contextual conversion + GCC15 -Wconversion selected it and tripped -Werror
     operator bool() const
     {
         return m_boolean;

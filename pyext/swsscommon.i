@@ -230,6 +230,7 @@
 
 #ifdef SWIGGO
 // Mapping c++ exception to go language panic
+// SWIG 4.4 Go backend no longer expands $function in %exception; use $action
 %exception {
 	try {
 		$action
